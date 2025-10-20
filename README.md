@@ -50,10 +50,10 @@ EXTERNAL_SERVICE_PERCENTAGE_PATH=/external/percentage
 
 ### 3. Levantar los Contenedores
 
-Ejecuta Docker Compose para construir la imagen de Spring Boot e iniciar ambos servicios:
+Ejecuta Docker Compose iniciar ambos servicios:
 
 ```bash
-docker-compose up --build -d
+docker-compose up -d
 ```
 
 ### Servicios y Puertos
