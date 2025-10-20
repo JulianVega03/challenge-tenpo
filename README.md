@@ -1,117 +1,146 @@
-# Challenge Backend - API REST en Spring Boot
+# 🚀 Challenge Backend - API REST en Spring Boot
 
-## Descripción
+## Descripción General
+Este proyecto consiste en una API REST desarrollada en Spring Boot (Java 21). Su objetivo principal es demostrar habilidades en la integración de servicios externos (mock), la implementación de mecanismos de caché para la resiliencia, y el manejo asíncrono de persistencia de datos con PostgreSQL.
 
-Este proyecto implementa una API REST en Spring Boot (Java 21) con las siguientes funcionalidades:
+## Funcionalidades Clave
+- **Cálculo Resiliente:** Suma de dos números con aplicación de un porcentaje dinámico obtenido de un servicio externo (mock).  
+- **Mecanismo de Caché:** El porcentaje del servicio externo se almacena en caché en memoria durante 30 minutos para garantizar la disponibilidad en caso de fallo del servicio proveedor.  
+- **Registro Asíncrono de Historial:** Se guarda un registro de todas las interacciones de la API (fecha, endpoint, parámetros, respuesta o error) de forma asíncrona en una base de datos PostgreSQL.  
 
-- **Cálculo con porcentaje dinámico:** Suma dos números y aplica un porcentaje adicional obtenido de un servicio externo (mock).
-- **Caché del porcentaje:** El porcentaje se almacena en memoria durante 30 minutos para usarlo si el servicio externo falla.
-- **Historial de llamadas:** Guarda un historial de todas las llamadas realizadas a la API (fecha, endpoint, parámetros, respuesta/error) de forma asíncrona en una base de datos PostgreSQL.
+## 🛠️ Requisitos Previos
+Para levantar y ejecutar la aplicación, solo se requiere tener instalado:
+- Docker  
+- Docker Compose (generalmente incluido con las instalaciones modernas de Docker).  
 
-La aplicación se ejecuta en contenedores Docker junto con la base de datos PostgreSQL usando docker-compose.
+## ⚙️ Configuración y Ejecución con Docker
+La aplicación y la base de datos PostgreSQL se levantan mediante un único comando `docker-compose`.
 
-## Requisitos previos
+### 1. Clonar el Repositorio
+```bash
+git clone https://github.com/JulianVega03/challenge-tenpo.git
+cd challenge-tenpo
+````
 
-- Tener instalado Docker y Docker Compose.
-- (Opcional) Navegador para probar la documentación Swagger.
+### 2. Configurar Variables de Entorno
 
-## Levantar la aplicación con Docker Compose
+Crea un archivo llamado `.env` en la raíz del proyecto ó usar el `.env` disponible en el repositorio.
+```env
+# Archivo: .env
+# Variables para la base de datos
+DB_PRIVATE_HOST=db
+DB_PORT=5432
+DB_NAME=challenge
+DB_USER=postgres
+DB_PASS=postgres
 
-Clona este repositorio:
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=challenge
+
+# Configuración de cache
+CACHE_EXPIRATION_TIME=30
+CACHE_EXPIRATION_TIME_UNIT=MINUTES
+
+# URL de servicio externo
+EXTERNAL_SERVICE_BASE_URL=http://localhost:8080/mock
+EXTERNAL_SERVICE_PERCENTAGE_PATH=/external/percentage
+
+```
+
+### 3. Levantar los Contenedores
+
+Ejecuta Docker Compose para construir la imagen de Spring Boot e iniciar ambos servicios:
 
 ```bash
-git clone <url-del-repositorio>
-cd <nombre-del-repositorio>
+docker-compose up --build -d
 ```
 
-Configura las variables de entorno creando un archivo .env con las credenciales para PostgreSQL:
-```
-POSTGRES_USER=usuario
-POSTGRES_PASSWORD=contraseña
-POSTGRES_DB=challenge_db
-```
+### Servicios y Puertos
 
-Esto hará lo siguiente:
+| Servicio        | Puerto Expuesto | Descripción                      |
+| --------------- | --------------- | -------------------------------- |
+| PostgreSQL      | 5432            | Base de datos para el historial. |
+| API Spring Boot | 8080            | Aplicación principal.            |
 
-- Levantar un contenedor de PostgreSQL en el puerto 5432.
-- Construir y levantar la aplicación Spring Boot en el puerto 8080.
-- La aplicación esperará a que la base de datos esté lista antes de iniciar.
-- Verifica que ambos servicios estén corriendo sin errores.
+> Nota: La aplicación Spring Boot está configurada para esperar a que la base de datos PostgreSQL esté completamente inicializada antes de iniciar su propio proceso.
 
+## 🌐 Endpoints de la API
 
+### 1. Cálculo con Porcentaje Dinámico
 
-## Endpoints disponibles
-### 1. Cálculo con porcentaje dinámico
+* **URL:** `GET /api/calculator/sum`
+* **Descripción:** Realiza la suma de `number1` y `number2`, luego aplica el porcentaje dinámico. Si el servicio externo falla, utiliza el último valor almacenado en caché.
 
-URL: GET /api/calculator/sum
+#### Parámetros Query
 
-Descripción: Suma dos números (number1 y number2) y aplica un porcentaje adicional obtenido de un servicio externo (mock). Si el servicio externo falla, usa el último porcentaje almacenado en caché.
+| Parámetro | Tipo   | Descripción            |
+| --------- | ------ | ---------------------- |
+| number1   | double | Primer número a sumar  |
+| number2   | double | Segundo número a sumar |
 
-Parámetros Query:
+#### Respuestas Posibles
 
-number1 (double) - Primer número a sumar.
+| Código | Descripción           | Detalle                                       |
+| ------ | --------------------- | --------------------------------------------- |
+| 200 OK | Éxito                 | Resultado del cálculo.                        |
+| 400    | Bad Request           | Parámetro faltante o formato inválido.        |
+| 503    | Service Unavailable   | Servicio externo falló y la caché está vacía. |
+| 500    | Internal Server Error | Error inesperado en el procesamiento.         |
 
-number2 (double) - Segundo número a sumar.
+#### Ejemplo de Llamada (cURL)
 
-Respuestas:
-
-200 OK con el resultado calculado.
-
-400 Bad Request si falta un parámetro o es inválido.
-
-503 Service Unavailable si el servicio externo falla y no hay caché disponible.
-
-500 Internal Server Error en caso de error inesperado.
-
-Ejemplo:
-```
-curl "http://localhost:8080/api/calculator/sum?number1=10&number2=20"
+```bash
+curl -X GET "http://localhost:8080/api/calculator/sum?number1=10.5&number2=20.0"
 ```
 
+---
 
-### 2. Historial de llamadas
+### 2. Historial de Llamadas
 
-URL: GET /api/history
+* **URL:** `GET /api/history`
+* **Descripción:** Recupera el historial de todas las llamadas realizadas a la API, con soporte para paginación y ordenamiento.
 
-Descripción: Obtiene un historial paginado de las llamadas realizadas a la API, incluyendo fecha, endpoint, parámetros, respuesta o error.
+#### Parámetros de Paginación (Opcionales)
 
-Parámetros de paginación: (opcional, mediante query params estándar de Spring Data)
+| Parámetro | Tipo   | Descripción                       | Default        |
+| --------- | ------ | --------------------------------- | -------------- |
+| page      | int    | Número de página                  | 0              |
+| size      | int    | Cantidad de elementos por página  | 20             |
+| sort      | string | Campo y dirección de ordenamiento | timestamp,desc |
 
-page (número de página, default 0)
+#### Respuestas Posibles
 
-size (tamaño de página, default 20)
+| Código | Descripción           | Detalle                                       |
+| ------ | --------------------- | --------------------------------------------- |
+| 200 OK | Éxito                 | Página de resultados del historial.           |
+| 400    | Bad Request           | Parámetro de paginación inválido.             |
+| 500    | Internal Server Error | Fallo al intentar acceder a la base de datos. |
 
-sort (ordenamiento, por defecto fecha descendente)
+#### Ejemplo de Llamada (cURL)
 
-Respuestas:
-
-200 OK con la página de resultados.
-
-400 Bad Request si algún parámetro de paginación es inválido.
-
-500 Internal Server Error en caso de error inesperado.
-
-Ejemplo:
+```bash
+curl -X GET "http://localhost:8080/api/history?page=0&size=10&sort=timestamp,asc"
 ```
-curl "http://localhost:8080/api/history?page=0&size=10"
-```
 
-## Documentación y pruebas con Swagger
+---
 
-Una vez que la aplicación esté corriendo, puedes acceder a la documentación interactiva y probar los endpoints en:
+## 📄 Documentación Interactiva (Swagger UI)
 
-http://localhost:8080/swagger-ui/index.html
+Una vez que la aplicación esté en ejecución (`http://localhost:8080`), puedes acceder a la interfaz interactiva de Swagger:
 
+[http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 
 En esta interfaz podrás:
 
-Ver la descripción de cada endpoint.
+* Ver la descripción y el esquema de cada endpoint.
+* Probar las peticiones directamente desde el navegador.
+* Visualizar los esquemas de entrada/salida y los códigos de respuesta.
 
-Probar las peticiones directamente desde el navegador.
+---
 
-Ver los esquemas de entrada y salida.
+## ✉️ Contacto
 
-Visualizar los códigos de respuesta esperados.
+**Julian Becerra Vega**
+Email: [julianbecerravega@gmail.com](mailto:julianbecerravega@gmail.com)
 
-## Contacto
-Julian Becerra Vega - julianbecerravega@gmail.com
