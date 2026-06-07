@@ -44,7 +44,7 @@ La imagen está disponible en [`julianvega03/challenge-tenpo`](https://hub.docke
 
 ```bash
 # 1. Clonar el repositorio (solo se necesita el docker-compose.yml)
-git clone <url-del-repositorio>
+git clone https://github.com/JulianVega03/challenge-tenpo.git
 cd challenge-tenpo
 
 # 2. Levantar PostgreSQL + aplicación (usa la imagen de Docker Hub)
